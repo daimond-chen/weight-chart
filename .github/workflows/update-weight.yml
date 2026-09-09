@@ -1,0 +1,39 @@
+name: Update weight data
+
+on:
+  schedule:
+    # 每天 UTC 14:00（台北時間 22:00）執行一次
+    - cron: "0 14 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Fetch latest weight data from Notion
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+        run: python fetch_weight.py
+
+      - name: Commit and push if data changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- data.json; then
+            echo "資料沒有變化，不需要 commit。"
+          else
+            git add data.json
+            git commit -m "自動更新體重資料 $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git push
+          fi
